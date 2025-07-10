@@ -56,13 +56,15 @@ def fetch_all_stock_data(symbol):
 
 def test_connection():
     try:
-        ticker = yf.Ticker("AAPL")
-        info = ticker.info
+        ticker = yf.Ticker("MSFT")
+        data = ticker.history(period="5d")
         
-        if info and 'symbol' in info:
+        if data is not None and not data.empty:
+            print("[INFO] yFinance connection successful.")
             return True
         else:
+            print("[ERROR] yFinance returned no data.")
             return False
-            
     except Exception as e:
+        print(f"[ERROR] yFinance test failed: {e}")
         return False

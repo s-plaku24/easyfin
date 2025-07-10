@@ -9,16 +9,21 @@ from database.questions_handler import get_all_questions, initialize_default_que
 from database.raw_data_handler import insert_raw_data, get_combined_raw_data
 from database.answers_handler import insert_or_update_answer
 from llm_analysis.groq_analyzer import analyze_stock_question_groq, test_groq_connection
+from dotenv import load_dotenv
+load_dotenv()
+
 
 def test_connections():
     if not test_yfinance():
+        print("[ERROR] yFinance connection failed.")
         return False
     
     if not test_groq_connection():
-        return True
-    
-    return True
+        print("[ERROR] Groq connection failed.")
+        return False
 
+    print("[INFO] All connections successful.")
+    return True
 def setup_database():
     if not initialize_default_questions():
         return False
@@ -45,6 +50,7 @@ def process_stock_data(symbol):
         return True
         
     except Exception as e:
+        print(f"[MAIN ERROR] {e}")
         return False
 
 def analyze_stock_questions(symbol):
@@ -78,6 +84,7 @@ def analyze_stock_questions(symbol):
         return successful_analyses > 0
         
     except Exception as e:
+        print(f"[MAIN ERROR] {e}")
         return False
 
 def process_single_stock(symbol):
@@ -91,14 +98,19 @@ def process_single_stock(symbol):
         return True
         
     except Exception as e:
+        print(f"[MAIN ERROR] {e}")
         return False
 
 def main():
     try:
+        print("[INFO] Testing connections...")
         if not test_connections():
+            print("[ERROR] Connection test failed.")
             sys.exit(1)
         
+        print("[INFO] Setting up database...")
         if not setup_database():
+            print("[ERROR] Database setup failed.")
             sys.exit(1)
         
         total_stocks = len(STOCK_SYMBOLS)
@@ -123,6 +135,7 @@ def main():
         sys.exit(1)
     
     except Exception as e:
+        print(f"[MAIN ERROR] {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
