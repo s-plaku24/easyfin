@@ -1,22 +1,16 @@
-"""
-Groq analyzer for stock analysis
-"""
-
 from groq import Groq
 import os
-from config import ANALYSIS_PROMPT
 import json
 import pandas as pd
 import numpy as np
 from datetime import datetime, date
+from llm_analysis.prompt_processor import create_analysis_prompt, clean_response
 
 def convert_data_for_groq(obj):
     """Recursively convert pandas objects to JSON-serializable format for Groq"""
     if isinstance(obj, dict):
-        # Convert dictionary keys and values
         new_dict = {}
         for key, value in obj.items():
-            # Convert keys to strings if they're timestamps
             if isinstance(key, (pd.Timestamp, datetime, date)):
                 new_key = key.isoformat()
             else:
@@ -40,9 +34,9 @@ def convert_data_for_groq(obj):
     else:
         return obj
 
-def analyze_stock_groq(symbol, ticker_data, market_data):
+def analyze_stock_question_groq(symbol, question_text, raw_data=None):
     """
-    Analyze stock using Groq LLM (free)
+    Analyze a specific stock question using Groq LLM
     """
     try:
         # Get API key from environment
@@ -52,45 +46,64 @@ def analyze_stock_groq(symbol, ticker_data, market_data):
             print(f"No Groq API key found for {symbol}")
             return None
         
-        print(f"Using Groq API for {symbol}")
-        
         client = Groq(api_key=api_key)
         
-        # Combine and convert data (fix timestamp issues)
-        combined_data = {
-            'symbol': symbol,
-            'ticker_data': ticker_data,
-            'market_data': market_data
-        }
+        # Create the analysis prompt
+        prompt = create_analysis_prompt(symbol, question_text, raw_data)
         
-        # Convert the entire data structure to handle timestamps
-        converted_data = convert_data_for_groq(combined_data)
+        if not prompt:
+            print(f"Failed to create prompt for {symbol}")
+            return None
         
-        # Create smaller data summary for the prompt
-        data_summary = json.dumps(converted_data)[:8000]  # Increased limit
-        
-        full_prompt = f"""{ANALYSIS_PROMPT}
-
-Here is the JSON data for stock {symbol}:
-
-{data_summary}
-
-Please analyze this stock data and provide the structured response as specified above."""
+        # Limit prompt size for API
+        if len(prompt) > 15000:
+            prompt = prompt[:15000] + "\n\nPlease analyze this stock data and provide your answer:"
         
         chat_completion = client.chat.completions.create(
             messages=[
                 {
                     "role": "user",
-                    "content": full_prompt,
+                    "content": prompt,
                 }
             ],
             model="llama3-8b-8192",  # Free model
-            max_tokens=1500,
+            max_tokens=8000,
             temperature=0.7
         )
         
-        return chat_completion.choices[0].message.content
+        response = chat_completion.choices[0].message.content
+        return clean_response(response)
         
     except Exception as e:
         print(f"Groq API error for {symbol}: {str(e)}")
         return None
+
+def test_groq_connection():
+    """
+    Test Groq API connection
+    """
+    try:
+        api_key = os.getenv('GROQ_API_KEY')
+        
+        if not api_key:
+            return False
+        
+        client = Groq(api_key=api_key)
+        
+        test_completion = client.chat.completions.create(
+            messages=[
+                {
+                    "role": "user",
+                    "content": "Hello, this is a test. Please respond with 'OK'.",
+                }
+            ],
+            model="llama3-8b-8192",
+            max_tokens=50
+        )
+        
+        response = test_completion.choices[0].message.content
+        return "OK" in response or "ok" in response.lower()
+        
+    except Exception as e:
+        print(f"Groq connection test error: {str(e)}")
+        return False

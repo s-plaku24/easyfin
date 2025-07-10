@@ -1,0 +1,131 @@
+from database.db_connection import DatabaseConnection
+
+def insert_question(question_text):
+    """
+    Insert a new question template
+    """
+    try:
+        with DatabaseConnection() as db:
+            if not db.connection:
+                return False
+            
+            query = """
+                INSERT INTO questions_templates (question_text)
+                VALUES (%s)
+                RETURNING id
+            """
+            
+            db.cursor.execute(query, (question_text,))
+            result = db.cursor.fetchone()
+            db.connection.commit()
+            
+            if result:
+                return result['id']
+            return None
+                
+    except Exception as e:
+        print(f"Error inserting question: {str(e)}")
+        return None
+
+def get_all_questions():
+    """
+    Get all question templates
+    """
+    try:
+        with DatabaseConnection() as db:
+            if not db.connection:
+                return []
+            
+            query = "SELECT * FROM questions_templates ORDER BY id"
+            results = db.fetch_all(query)
+            
+            return [dict(row) for row in results]
+                
+    except Exception as e:
+        print(f"Error getting questions: {str(e)}")
+        return []
+
+def get_question_by_id(question_id):
+    """
+    Get a specific question by ID
+    """
+    try:
+        with DatabaseConnection() as db:
+            if not db.connection:
+                return None
+            
+            query = "SELECT * FROM questions_templates WHERE id = %s"
+            results = db.fetch_all(query, (question_id,))
+            
+            if results:
+                return dict(results[0])
+            return None
+                
+    except Exception as e:
+        print(f"Error getting question {question_id}: {str(e)}")
+        return None
+
+def update_question(question_id, question_text):
+    """
+    Update a question template
+    """
+    try:
+        with DatabaseConnection() as db:
+            if not db.connection:
+                return False
+            
+            query = """
+                UPDATE questions_templates 
+                SET question_text = %s 
+                WHERE id = %s
+            """
+            
+            return db.execute_query(query, (question_text, question_id))
+                
+    except Exception as e:
+        print(f"Error updating question {question_id}: {str(e)}")
+        return False
+
+def delete_question(question_id):
+    """
+    Delete a question template
+    """
+    try:
+        with DatabaseConnection() as db:
+            if not db.connection:
+                return False
+            
+            query = "DELETE FROM questions_templates WHERE id = %s"
+            return db.execute_query(query, (question_id,))
+                
+    except Exception as e:
+        print(f"Error deleting question {question_id}: {str(e)}")
+        return False
+
+def initialize_default_questions():
+    """
+    Initialize default questions if none exist
+    """
+    try:
+        questions = get_all_questions()
+        
+        if not questions:
+            default_questions = [
+                "What is the current performance of this stock compared to its recent historical trend?",
+                "Is this stock considered overvalued or undervalued based on current analyst targets and earnings data?",
+                "What are the key financial strengths or weaknesses of this company based on its latest financial statements?",
+                "What do recent insider and institutional activities suggest about confidence in this stock?",
+                "How does the stock's volatility and risk profile compare to the broader market?"
+            ]
+            
+            for question in default_questions:
+                insert_question(question)
+            
+            print(f"Initialized {len(default_questions)} default questions")
+            return True
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error initializing default questions: {str(e)}")
+        return False

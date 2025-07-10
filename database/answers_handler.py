@@ -1,58 +1,46 @@
-"""
-Handler for answers table operations
-"""
-
-from datetime import datetime
 from database.db_connection import DatabaseConnection
 
-def update_stock_answer(symbol, answer_text):
+def insert_or_update_answer(symbol, question_id, answer_text):
     """
-    Update or insert answer for a stock symbol
-    Replaces any existing answer for the day
-    
-    Args:
-        symbol (str): Stock symbol (e.g., 'AAPL')
-        answer_text (str): LLM analysis response
+    Insert or update answer for a stock and question
     """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
                 return False
             
-            # First, delete any existing answer for this symbol today
-            delete_query = """
-                DELETE FROM answers 
-                WHERE symbol = %s 
-                AND DATE(updated_at) = CURRENT_DATE
+            # Check if answer exists
+            check_query = """
+                SELECT symbol FROM answers 
+                WHERE symbol = %s AND question_id = %s
             """
+            existing = db.fetch_all(check_query, (symbol, question_id))
             
-            db.execute_query(delete_query, (symbol,))
-            
-            # Insert the new answer
-            insert_query = """
-                INSERT INTO answers (symbol, answer_text, updated_at)
-                VALUES (%s, %s, %s)
-            """
-            
-            params = (symbol, answer_text, datetime.now())
-            
-            if db.execute_query(insert_query, params):
-                return True
+            if existing:
+                # Update existing answer
+                update_query = """
+                    UPDATE answers 
+                    SET answer_text = %s 
+                    WHERE symbol = %s AND question_id = %s
+                """
+                params = (answer_text, symbol, question_id)
+                return db.execute_query(update_query, params)
             else:
-                return False
+                # Insert new answer
+                insert_query = """
+                    INSERT INTO answers (symbol, question_id, answer_text)
+                    VALUES (%s, %s, %s)
+                """
+                params = (symbol, question_id, answer_text)
+                return db.execute_query(insert_query, params)
                 
     except Exception as e:
+        print(f"Error inserting/updating answer for {symbol}, question {question_id}: {str(e)}")
         return False
 
-def get_stock_answer(symbol):
+def get_answer(symbol, question_id):
     """
-    Get the latest answer for a stock symbol
-    
-    Args:
-        symbol (str): Stock symbol
-    
-    Returns:
-        str: Answer text or None if not found
+    Get answer for a specific stock and question
     """
     try:
         with DatabaseConnection() as db:
@@ -61,27 +49,22 @@ def get_stock_answer(symbol):
             
             query = """
                 SELECT answer_text FROM answers 
-                WHERE symbol = %s 
-                ORDER BY updated_at DESC 
-                LIMIT 1
+                WHERE symbol = %s AND question_id = %s
             """
             
-            results = db.fetch_all(query, (symbol,))
+            results = db.fetch_all(query, (symbol, question_id))
             
             if results:
                 return results[0]['answer_text']
-            else:
-                return None
+            return None
                 
     except Exception as e:
+        print(f"Error getting answer for {symbol}, question {question_id}: {str(e)}")
         return None
 
-def get_all_latest_answers():
+def get_all_answers_for_stock(symbol):
     """
-    Get all latest answers for dashboard display
-    
-    Returns:
-        list: List of dictionaries with symbol and answer_text
+    Get all answers for a stock with question text
     """
     try:
         with DatabaseConnection() as db:
@@ -89,24 +72,96 @@ def get_all_latest_answers():
                 return []
             
             query = """
-                SELECT symbol, answer_text, updated_at 
-                FROM answers 
-                WHERE DATE(updated_at) = CURRENT_DATE
-                ORDER BY symbol
+                SELECT a.question_id, a.answer_text, q.question_text, a.created_at
+                FROM answers a
+                JOIN questions_templates q ON a.question_id = q.id
+                WHERE a.symbol = %s
+                ORDER BY a.question_id
+            """
+            
+            results = db.fetch_all(query, (symbol,))
+            return [dict(row) for row in results]
+                
+    except Exception as e:
+        print(f"Error getting all answers for {symbol}: {str(e)}")
+        return []
+
+def get_all_answers_for_question(question_id):
+    """
+    Get all answers for a specific question across all stocks
+    """
+    try:
+        with DatabaseConnection() as db:
+            if not db.connection:
+                return []
+            
+            query = """
+                SELECT a.symbol, a.answer_text, s.name as stock_name, a.created_at
+                FROM answers a
+                JOIN stocks s ON a.symbol = s.symbol
+                WHERE a.question_id = %s
+                ORDER BY a.symbol
+            """
+            
+            results = db.fetch_all(query, (question_id,))
+            return [dict(row) for row in results]
+                
+    except Exception as e:
+        print(f"Error getting all answers for question {question_id}: {str(e)}")
+        return []
+
+def get_dashboard_data():
+    """
+    Get all data for dashboard display
+    """
+    try:
+        with DatabaseConnection() as db:
+            if not db.connection:
+                return {}
+            
+            query = """
+                SELECT 
+                    s.symbol,
+                    s.name as stock_name,
+                    a.question_id,
+                    q.question_text,
+                    a.answer_text,
+                    a.created_at
+                FROM stocks s
+                LEFT JOIN answers a ON s.symbol = a.symbol
+                LEFT JOIN questions_templates q ON a.question_id = q.id
+                ORDER BY s.symbol, a.question_id
             """
             
             results = db.fetch_all(query)
-            return results
+            
+            # Group by stock symbol
+            dashboard_data = {}
+            for row in results:
+                symbol = row['symbol']
+                if symbol not in dashboard_data:
+                    dashboard_data[symbol] = {
+                        'stock_name': row['stock_name'],
+                        'answers': []
+                    }
+                
+                if row['question_id']:
+                    dashboard_data[symbol]['answers'].append({
+                        'question_id': row['question_id'],
+                        'question_text': row['question_text'],
+                        'answer_text': row['answer_text'],
+                        'created_at': row['created_at']
+                    })
+            
+            return dashboard_data
                 
     except Exception as e:
-        return []
+        print(f"Error getting dashboard data: {str(e)}")
+        return {}
 
 def cleanup_old_answers(days_to_keep=30):
     """
-    Clean up old answers (optional function for maintenance)
-    
-    Args:
-        days_to_keep (int): Number of days to keep answers
+    Clean up old answers
     """
     try:
         with DatabaseConnection() as db:
@@ -115,13 +170,11 @@ def cleanup_old_answers(days_to_keep=30):
             
             query = """
                 DELETE FROM answers 
-                WHERE updated_at < NOW() - INTERVAL '%s days'
+                WHERE created_at < NOW() - INTERVAL '%s days'
             """
             
-            if db.execute_query(query, (days_to_keep,)):
-                return True
-            else:
-                return False
+            return db.execute_query(query, (days_to_keep,))
                 
     except Exception as e:
+        print(f"Error cleaning up old answers: {str(e)}")
         return False

@@ -1,14 +1,10 @@
-"""
-Handler for raw_files table operations
-"""
-
 import json
 from datetime import datetime
 from database.db_connection import DatabaseConnection
 
 def insert_raw_data(symbol, data_type, raw_data):
     """
-    Insert raw data from yfinance API into raw_files table
+    Insert raw data from yfinance API into raw_data table
     """
     try:
         print(f"DEBUG: Attempting to insert {data_type} data for {symbol}")
@@ -28,10 +24,8 @@ def insert_raw_data(symbol, data_type, raw_data):
                 from datetime import datetime, date
                 
                 if isinstance(obj, dict):
-                    # Convert dictionary keys and values
                     new_dict = {}
                     for key, value in obj.items():
-                        # Convert keys to strings if they're timestamps
                         if isinstance(key, (pd.Timestamp, datetime, date)):
                             new_key = key.isoformat()
                         else:
@@ -62,16 +56,20 @@ def insert_raw_data(symbol, data_type, raw_data):
             json_data = json.dumps(converted_data)
             print(f"DEBUG: JSON data length: {len(json_data)} characters")
             
-            # Insert query
-            query = """
-                INSERT INTO raw_files (symbol, type, raw_data, timestamp)
-                VALUES (%s, %s, %s, %s)
+            # Delete existing data for this symbol and type (replace strategy)
+            delete_query = "DELETE FROM raw_data WHERE symbol = %s AND type = %s"
+            db.execute_query(delete_query, (symbol, data_type))
+            
+            # Insert new data
+            insert_query = """
+                INSERT INTO raw_data (symbol, type, raw_data)
+                VALUES (%s, %s, %s)
             """
             
-            params = (symbol, data_type, json_data, datetime.now())
+            params = (symbol, data_type, json_data)
             print(f"DEBUG: About to execute query with symbol={symbol}, type={data_type}")
             
-            if db.execute_query(query, params):
+            if db.execute_query(insert_query, params):
                 print(f"DEBUG: Successfully inserted {data_type} data for {symbol}")
                 return True
             else:
@@ -87,13 +85,6 @@ def insert_raw_data(symbol, data_type, raw_data):
 def get_latest_raw_data(symbol, data_type):
     """
     Get the latest raw data for a symbol and type
-    
-    Args:
-        symbol (str): Stock symbol
-        data_type (str): 'ticker' or 'market'
-    
-    Returns:
-        dict: Raw data or None if not found
     """
     try:
         with DatabaseConnection() as db:
@@ -101,9 +92,9 @@ def get_latest_raw_data(symbol, data_type):
                 return None
             
             query = """
-                SELECT raw_data FROM raw_files 
+                SELECT raw_data FROM raw_data 
                 WHERE symbol = %s AND type = %s 
-                ORDER BY timestamp DESC 
+                ORDER BY created_at DESC 
                 LIMIT 1
             """
             
@@ -115,14 +106,33 @@ def get_latest_raw_data(symbol, data_type):
                 return None
                 
     except Exception as e:
+        print(f"Error getting raw data for {symbol}: {str(e)}")
+        return None
+
+def get_combined_raw_data(symbol):
+    """
+    Get both ticker and market data for a symbol
+    """
+    try:
+        ticker_data = get_latest_raw_data(symbol, 'ticker')
+        market_data = get_latest_raw_data(symbol, 'market')
+        
+        if ticker_data and market_data:
+            return {
+                'symbol': symbol,
+                'ticker_data': ticker_data,
+                'market_data': market_data
+            }
+        
+        return None
+                
+    except Exception as e:
+        print(f"Error getting combined data for {symbol}: {str(e)}")
         return None
 
 def cleanup_old_raw_data(days_to_keep=7):
     """
-    Clean up old raw data (optional function for maintenance)
-    
-    Args:
-        days_to_keep (int): Number of days to keep data
+    Clean up old raw data
     """
     try:
         with DatabaseConnection() as db:
@@ -130,14 +140,12 @@ def cleanup_old_raw_data(days_to_keep=7):
                 return False
             
             query = """
-                DELETE FROM raw_files 
-                WHERE timestamp < NOW() - INTERVAL '%s days'
+                DELETE FROM raw_data 
+                WHERE created_at < NOW() - INTERVAL '%s days'
             """
             
-            if db.execute_query(query, (days_to_keep,)):
-                return True
-            else:
-                return False
+            return db.execute_query(query, (days_to_keep,))
                 
     except Exception as e:
+        print(f"Error cleaning up old data: {str(e)}")
         return False

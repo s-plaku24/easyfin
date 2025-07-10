@@ -1,91 +1,37 @@
-"""
-Prompt processor for formatting data and handling LLM responses
-"""
-
 import json
-from config import ANALYSIS_PROMPT
-from llm_analysis.huggingface_client import HuggingFaceClient
+from config import BASE_ANALYSIS_PROMPT
+from database.raw_data_handler import get_combined_raw_data
 
-def create_analysis_prompt(symbol, ticker_data, market_data):
+def create_analysis_prompt(symbol, question_text, raw_data=None):
     """
-    Create the full analysis prompt with stock data
-    
-    Args:
-        symbol (str): Stock symbol
-        ticker_data (dict): Ticker data from yfinance
-        market_data (dict): Market data from yfinance
-    
-    Returns:
-        str: Formatted prompt ready for LLM
+    Create the analysis prompt for a specific question
     """
     try:
-        # Combine ticker and market data
-        combined_data = {
-            'symbol': symbol,
-            'ticker_data': ticker_data,
-            'market_data': market_data
-        }
+        # Get raw data if not provided
+        if raw_data is None:
+            raw_data = get_combined_raw_data(symbol)
+        
+        if not raw_data:
+            return None
         
         # Convert to JSON string for the prompt
-        data_json = json.dumps(combined_data, default=str, indent=2)
+        data_json = json.dumps(raw_data, default=str, indent=2)
         
         # Create the full prompt
-        full_prompt = f"""
-{ANALYSIS_PROMPT}
-
-Here is the JSON data for stock {symbol}:
-
-{data_json}
-
-Please analyze this stock data and provide the structured response as specified above.
-"""
+        full_prompt = BASE_ANALYSIS_PROMPT.format(
+            json_data=data_json,
+            question=question_text
+        )
         
         return full_prompt
         
     except Exception as e:
-        return None
-
-def analyze_stock(symbol, ticker_data, market_data):
-    """
-    Analyze a stock using the LLM
-    
-    Args:
-        symbol (str): Stock symbol
-        ticker_data (dict): Ticker data from yfinance
-        market_data (dict): Market data from yfinance
-    
-    Returns:
-        str: LLM analysis response or None if failed
-    """
-    try:
-        # Create the prompt
-        prompt = create_analysis_prompt(symbol, ticker_data, market_data)
-        if not prompt:
-            return None
-        
-        # Initialize Hugging Face client
-        client = HuggingFaceClient()
-        
-        # Get analysis from LLM
-        analysis = client.query_model(prompt)
-        
-        if analysis:
-            return analysis
-        else:
-            return None
-            
-    except Exception as e:
+        print(f"Error creating prompt for {symbol}: {str(e)}")
         return None
 
 def clean_response(response):
     """
     Clean and format the LLM response
-    
-    Args:
-        response (str): Raw LLM response
-    
-    Returns:
-        str: Cleaned response
     """
     if not response:
         return ""
@@ -103,69 +49,30 @@ def clean_response(response):
         return cleaned
         
     except Exception as e:
+        print(f"Error cleaning response: {str(e)}")
         return response
-
-def extract_company_name(ticker_data):
-    """
-    Extract company name from ticker data
-    
-    Args:
-        ticker_data (dict): Ticker data from yfinance
-    
-    Returns:
-        str: Company name or symbol if not found
-    """
-    try:
-        if ticker_data and 'info' in ticker_data:
-            info = ticker_data['info']
-            
-            # Try different fields for company name
-            for field in ['longName', 'shortName', 'companyName', 'name']:
-                if field in info and info[field]:
-                    return info[field]
-        
-        return ticker_data.get('symbol', 'Unknown')
-        
-    except Exception as e:
-        return 'Unknown'
 
 def validate_analysis_response(response):
     """
-    Validate that the analysis response contains the expected structure
-    
-    Args:
-        response (str): LLM analysis response
-    
-    Returns:
-        bool: True if response appears valid, False otherwise
+    Validate that the analysis response is reasonable
     """
     if not response:
         return False
     
     try:
-        # Check for key components
-        required_elements = [
-            'Stock Name:',
-            'Stock Symbol:',
-            'Question 1:',
-            'Answer 1:',
-            'Question 2:',
-            'Answer 2:',
-            'Question 3:',
-            'Answer 3:',
-            'Question 4:',
-            'Answer 4:',
-            'Question 5:',
-            'Answer 5:'
-        ]
+        # Basic validation - check if response has reasonable length
+        if len(response.strip()) < 10:
+            return False
         
+        # Check if it's not just an error message
+        error_indicators = ['error', 'failed', 'unable', 'cannot analyze']
         response_lower = response.lower()
         
-        for element in required_elements:
-            if element.lower() not in response_lower:
-                return False
+        if any(indicator in response_lower for indicator in error_indicators):
+            return False
         
         return True
         
     except Exception as e:
+        print(f"Error validating response: {str(e)}")
         return False

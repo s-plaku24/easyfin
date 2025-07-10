@@ -1,18 +1,6 @@
-"""
-Main orchestrator script for the Stock Analysis Project
-Runs the complete daily pipeline:
-1. Fetch stock data via yfinance API
-2. Store raw data in PostgreSQL
-3. Analyze data using Hugging Face LLM
-4. Store analysis results in database
-"""
-
 import sys
 import time
 from datetime import datetime
-
-from llm_analysis.prompt_processor import clean_response, validate_analysis_response
-from llm_analysis.groq_analyzer import analyze_stock_groq
 
 # Import configuration
 from config import STOCK_SYMBOLS
@@ -21,12 +9,13 @@ from config import STOCK_SYMBOLS
 from data_extraction.yfinance_fetcher import fetch_all_stock_data, test_connection as test_yfinance
 
 # Import database handlers
-from database.raw_data_handler import insert_raw_data
-from database.answers_handler import update_stock_answer
+from database.stocks_handler import insert_or_update_stock, extract_stock_info_from_ticker
+from database.questions_handler import get_all_questions, initialize_default_questions
+from database.raw_data_handler import insert_raw_data, get_combined_raw_data
+from database.answers_handler import insert_or_update_answer
 
 # Import LLM analysis
-from llm_analysis.prompt_processor import analyze_stock, clean_response, validate_analysis_response
-from llm_analysis.huggingface_client import HuggingFaceClient
+from llm_analysis.groq_analyzer import analyze_stock_question_groq, test_groq_connection
 
 def test_connections():
     """
@@ -39,39 +28,48 @@ def test_connections():
         print("YFinance connection test failed")
         return False
     
-    # Test Hugging Face connection
-    client = HuggingFaceClient()
-    if not client.test_connection():
-        print("Hugging Face API connection test failed - continuing with mock analysis")
+    # Test Groq connection
+    if not test_groq_connection():
+        print("Groq API connection test failed - continuing with fallback")
         return True  # Continue anyway
     
     print("All connection tests passed")
     return True
 
-def process_single_stock(symbol):
+def setup_database():
     """
-    Process a single stock through the complete pipeline
-    
-    Args:
-        symbol (str): Stock symbol to process
-    
-    Returns:
-        bool: True if successful, False otherwise
+    Initialize database with default questions if needed
     """
-    print(f"Processing stock: {symbol}")
+    print("Setting up database...")
+    
+    if not initialize_default_questions():
+        print("Failed to initialize default questions")
+        return False
+    
+    print("Database setup completed")
+    return True
+
+def process_stock_data(symbol):
+    """
+    Process stock data: fetch, store, and update stock info
+    """
+    print(f"Processing stock data for {symbol}")
     
     try:
         # Step 1: Fetch stock data
-        print(f"Step 1: Fetching data for {symbol}")
         ticker_data, market_data = fetch_all_stock_data(symbol)
         
         if not ticker_data or not market_data:
             print(f"Failed to fetch data for {symbol}")
             return False
         
-        # Step 2: Store raw data in database
-        print(f"Step 2: Storing raw data for {symbol}")
+        # Step 2: Extract and store stock information
+        stock_info = extract_stock_info_from_ticker(ticker_data)
+        if not insert_or_update_stock(symbol, **stock_info):
+            print(f"Failed to store stock info for {symbol}")
+            return False
         
+        # Step 3: Store raw data
         ticker_success = insert_raw_data(symbol, 'ticker', ticker_data)
         market_success = insert_raw_data(symbol, 'market', market_data)
         
@@ -79,31 +77,85 @@ def process_single_stock(symbol):
             print(f"Failed to store raw data for {symbol}")
             return False
         
-	# Step 3: Analyze stock using Groq LLM (FREE REAL AI)
-        print(f"Step 3: Analyzing {symbol} with Groq AI")
+        print(f"Successfully processed stock data for {symbol}")
+        return True
         
-        analysis = analyze_stock_groq(symbol, ticker_data, market_data)
-        
-        if not analysis:
-            print(f"Failed to get analysis for {symbol}, using fallback")
-            # Fallback to simple message if AI fails
-            analysis = f"AI analysis failed for {symbol} - raw data stored successfully"
+    except Exception as e:
+        print(f"Error processing stock data for {symbol}: {str(e)}")
+        return False
 
-        # Step 4: Clean and validate response
-        cleaned_analysis = clean_response(analysis)
-        # Step 4: Clean and validate response (simplified for mock)
-        cleaned_analysis = analysis.strip()
-        
-        # Step 5: Store analysis in database
-        print(f"Step 4: Storing analysis for {symbol}")
-        
-        if update_stock_answer(symbol, cleaned_analysis):
-            print(f"Successfully completed processing for {symbol}")
-            return True
-        else:
-            print(f"Failed to store analysis for {symbol}")
-            return False
+def analyze_stock_questions(symbol):
+    """
+    Analyze all questions for a specific stock
+    """
+    print(f"Analyzing questions for {symbol}")
     
+    try:
+        # Get all questions from database
+        questions = get_all_questions()
+        
+        if not questions:
+            print(f"No questions found in database for {symbol}")
+            return False
+        
+        # Get raw data for this stock
+        raw_data = get_combined_raw_data(symbol)
+        
+        if not raw_data:
+            print(f"No raw data found for {symbol}")
+            return False
+        
+        successful_analyses = 0
+        total_questions = len(questions)
+        
+        # Process each question
+        for question in questions:
+            question_id = question['id']
+            question_text = question['question_text']
+            
+            print(f"  Analyzing question {question_id}: {question_text[:50]}...")
+            
+            # Get analysis from LLM
+            analysis = analyze_stock_question_groq(symbol, question_text, raw_data)
+            
+            if analysis:
+                # Store the answer
+                if insert_or_update_answer(symbol, question_id, analysis):
+                    successful_analyses += 1
+                    print(f"    Successfully analyzed question {question_id}")
+                else:
+                    print(f"    Failed to store answer for question {question_id}")
+            else:
+                print(f"    Failed to get analysis for question {question_id}")
+                # Store a fallback answer
+                fallback_answer = f"Analysis unavailable for this question at this time. Raw data was successfully collected for {symbol}."
+                insert_or_update_answer(symbol, question_id, fallback_answer)
+        
+        print(f"Completed {successful_analyses}/{total_questions} question analyses for {symbol}")
+        return successful_analyses > 0
+        
+    except Exception as e:
+        print(f"Error analyzing questions for {symbol}: {str(e)}")
+        return False
+
+def process_single_stock(symbol):
+    """
+    Process a single stock through the complete pipeline
+    """
+    print(f"Processing stock: {symbol}")
+    
+    try:
+        # Step 1: Process stock data (fetch, store, update info)
+        if not process_stock_data(symbol):
+            return False
+        
+        # Step 2: Analyze all questions for this stock
+        if not analyze_stock_questions(symbol):
+            return False
+        
+        print(f"Successfully completed processing for {symbol}")
+        return True
+        
     except Exception as e:
         print(f"Unexpected error processing {symbol}: {str(e)}")
         return False
@@ -117,36 +169,42 @@ def main():
     print("="*50)
     
     try:
-        # Test all connections first
+        # Step 1: Test all connections
         if not test_connections():
             print("Connection tests failed - aborting process")
             sys.exit(1)
         
-        # Process statistics
+        # Step 2: Setup database (initialize questions if needed)
+        if not setup_database():
+            print("Database setup failed - aborting process")
+            sys.exit(1)
+        
+        # Step 3: Process statistics
         total_stocks = len(STOCK_SYMBOLS)
         successful_stocks = 0
         failed_stocks = []
         
         print(f"Starting to process {total_stocks} stocks: {', '.join(STOCK_SYMBOLS)}")
         
-        # Process each stock
+        # Step 4: Process each stock
         for i, symbol in enumerate(STOCK_SYMBOLS, 1):
-            print(f"Processing stock {i}/{total_stocks}: {symbol}")
+            print(f"\nProcessing stock {i}/{total_stocks}: {symbol}")
+            print("-" * 30)
             
             if process_single_stock(symbol):
                 successful_stocks += 1
-                print(f"Completed {symbol} ({i}/{total_stocks})")
+                print(f"✓ Completed {symbol} ({i}/{total_stocks})")
             else:
                 failed_stocks.append(symbol)
-                print(f"Failed {symbol} ({i}/{total_stocks})")
+                print(f"✗ Failed {symbol} ({i}/{total_stocks})")
             
             # Add a small delay between stocks to be nice to APIs
             if i < total_stocks:
                 print("Waiting 5 seconds before next stock...")
                 time.sleep(5)
         
-        # Final summary
-        print("="*50)
+        # Step 5: Final summary
+        print("\n" + "="*50)
         print("DAILY PROCESS SUMMARY")
         print("="*50)
         print(f"Total stocks processed: {total_stocks}")
@@ -157,14 +215,14 @@ def main():
             print(f"Failed stocks: {', '.join(failed_stocks)}")
         
         if successful_stocks == total_stocks:
-            print("All stocks processed successfully!")
+            print("🎉 All stocks processed successfully!")
         elif successful_stocks > 0:
-            print(f"Partial success: {successful_stocks}/{total_stocks} stocks completed")
+            print(f"⚠️  Partial success: {successful_stocks}/{total_stocks} stocks completed")
         else:
-            print("No stocks were processed successfully")
+            print("❌ No stocks were processed successfully")
     
     except KeyboardInterrupt:
-        print("Process interrupted by user")
+        print("\nProcess interrupted by user")
         sys.exit(1)
     
     except Exception as e:
@@ -172,7 +230,7 @@ def main():
         sys.exit(1)
     
     finally:
-        print("="*50)
+        print("\n" + "="*50)
         print(f"Completed daily stock analysis process at {datetime.now()}")
         print("="*50)
 
