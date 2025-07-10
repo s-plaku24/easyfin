@@ -1,7 +1,3 @@
-"""
-Database connection handler for PostgreSQL
-"""
-
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from config import DB_CONFIG
@@ -12,9 +8,6 @@ class DatabaseConnection:
         self.cursor = None
     
     def connect(self):
-        """
-        Establish connection to PostgreSQL database
-        """
         try:
             self.connection = psycopg2.connect(**DB_CONFIG)
             self.cursor = self.connection.cursor(cursor_factory=RealDictCursor)
@@ -23,18 +16,12 @@ class DatabaseConnection:
             return False
     
     def disconnect(self):
-        """
-        Close database connection
-        """
         if self.cursor:
             self.cursor.close()
         if self.connection:
             self.connection.close()
     
     def execute_query(self, query, params=None):
-        """
-        Execute a query with optional parameters
-        """
         try:
             self.cursor.execute(query, params)
             self.connection.commit()
@@ -44,9 +31,6 @@ class DatabaseConnection:
             return False
     
     def fetch_all(self, query, params=None):
-        """
-        Execute a SELECT query and return all results
-        """
         try:
             self.cursor.execute(query, params)
             return self.cursor.fetchall()
@@ -54,10 +38,8 @@ class DatabaseConnection:
             return []
     
     def __enter__(self):
-        """Context manager entry"""
         self.connect()
         return self
     
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit"""
         self.disconnect()

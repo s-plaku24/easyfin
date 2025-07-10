@@ -7,7 +7,6 @@ from datetime import datetime, date
 from llm_analysis.prompt_processor import create_analysis_prompt, clean_response
 
 def convert_data_for_groq(obj):
-    """Recursively convert pandas objects to JSON-serializable format for Groq"""
     if isinstance(obj, dict):
         new_dict = {}
         for key, value in obj.items():
@@ -35,27 +34,19 @@ def convert_data_for_groq(obj):
         return obj
 
 def analyze_stock_question_groq(symbol, question_text, raw_data=None):
-    """
-    Analyze a specific stock question using Groq LLM
-    """
     try:
-        # Get API key from environment
         api_key = os.getenv('GROQ_API_KEY')
         
         if not api_key:
-            print(f"No Groq API key found for {symbol}")
             return None
         
         client = Groq(api_key=api_key)
         
-        # Create the analysis prompt
         prompt = create_analysis_prompt(symbol, question_text, raw_data)
         
         if not prompt:
-            print(f"Failed to create prompt for {symbol}")
             return None
         
-        # Limit prompt size for API
         if len(prompt) > 15000:
             prompt = prompt[:15000] + "\n\nPlease analyze this stock data and provide your answer:"
         
@@ -66,7 +57,7 @@ def analyze_stock_question_groq(symbol, question_text, raw_data=None):
                     "content": prompt,
                 }
             ],
-            model="llama3-8b-8192",  # Free model
+            model="llama3-8b-8192",
             max_tokens=8000,
             temperature=0.7
         )
@@ -75,13 +66,9 @@ def analyze_stock_question_groq(symbol, question_text, raw_data=None):
         return clean_response(response)
         
     except Exception as e:
-        print(f"Groq API error for {symbol}: {str(e)}")
         return None
 
 def test_groq_connection():
-    """
-    Test Groq API connection
-    """
     try:
         api_key = os.getenv('GROQ_API_KEY')
         
@@ -105,5 +92,4 @@ def test_groq_connection():
         return "OK" in response or "ok" in response.lower()
         
     except Exception as e:
-        print(f"Groq connection test error: {str(e)}")
         return False

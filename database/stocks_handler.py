@@ -2,20 +2,15 @@ from database.db_connection import DatabaseConnection
 
 def insert_or_update_stock(symbol, name=None, country=None, sector=None, region=None, 
                           industry=None, exchange=None, currency=None, ipo_year=None, isin=None):
-    """
-    Insert or update stock information
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
                 return False
             
-            # Check if stock exists
             check_query = "SELECT symbol FROM stocks WHERE symbol = %s"
             existing = db.fetch_all(check_query, (symbol,))
             
             if existing:
-                # Update existing stock
                 update_query = """
                     UPDATE stocks SET 
                         name = COALESCE(%s, name),
@@ -33,7 +28,6 @@ def insert_or_update_stock(symbol, name=None, country=None, sector=None, region=
                          currency, ipo_year, isin, symbol)
                 return db.execute_query(update_query, params)
             else:
-                # Insert new stock
                 insert_query = """
                     INSERT INTO stocks (symbol, name, country, sector, region, industry, 
                                       exchange, currency, ipo_year, isin)
@@ -44,13 +38,9 @@ def insert_or_update_stock(symbol, name=None, country=None, sector=None, region=
                 return db.execute_query(insert_query, params)
                 
     except Exception as e:
-        print(f"Error in insert_or_update_stock for {symbol}: {str(e)}")
         return False
 
 def get_stock_info(symbol):
-    """
-    Get stock information
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -64,13 +54,9 @@ def get_stock_info(symbol):
             return None
                 
     except Exception as e:
-        print(f"Error in get_stock_info for {symbol}: {str(e)}")
         return None
 
 def get_all_stocks():
-    """
-    Get all stocks from database
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -82,13 +68,9 @@ def get_all_stocks():
             return [dict(row) for row in results]
                 
     except Exception as e:
-        print(f"Error in get_all_stocks: {str(e)}")
         return []
 
 def extract_stock_info_from_ticker(ticker_data):
-    """
-    Extract stock information from ticker data
-    """
     try:
         if not ticker_data or 'info' not in ticker_data:
             return {}
@@ -109,5 +91,4 @@ def extract_stock_info_from_ticker(ticker_data):
         return extracted
         
     except Exception as e:
-        print(f"Error extracting stock info: {str(e)}")
         return {}

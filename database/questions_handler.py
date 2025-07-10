@@ -1,9 +1,6 @@
 from database.db_connection import DatabaseConnection
 
 def insert_question(question_text):
-    """
-    Insert a new question template
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -24,13 +21,9 @@ def insert_question(question_text):
             return None
                 
     except Exception as e:
-        print(f"Error inserting question: {str(e)}")
         return None
 
 def get_all_questions():
-    """
-    Get all question templates
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -42,13 +35,9 @@ def get_all_questions():
             return [dict(row) for row in results]
                 
     except Exception as e:
-        print(f"Error getting questions: {str(e)}")
         return []
 
 def get_question_by_id(question_id):
-    """
-    Get a specific question by ID
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -62,13 +51,9 @@ def get_question_by_id(question_id):
             return None
                 
     except Exception as e:
-        print(f"Error getting question {question_id}: {str(e)}")
         return None
 
 def update_question(question_id, question_text):
-    """
-    Update a question template
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -83,13 +68,9 @@ def update_question(question_id, question_text):
             return db.execute_query(query, (question_text, question_id))
                 
     except Exception as e:
-        print(f"Error updating question {question_id}: {str(e)}")
         return False
 
 def delete_question(question_id):
-    """
-    Delete a question template
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -99,13 +80,9 @@ def delete_question(question_id):
             return db.execute_query(query, (question_id,))
                 
     except Exception as e:
-        print(f"Error deleting question {question_id}: {str(e)}")
         return False
 
 def initialize_default_questions():
-    """
-    Initialize default questions if none exist
-    """
     try:
         questions = get_all_questions()
         
@@ -121,11 +98,9 @@ def initialize_default_questions():
             for question in default_questions:
                 insert_question(question)
             
-            print(f"Initialized {len(default_questions)} default questions")
             return True
         
         return True
         
     except Exception as e:
-        print(f"Error initializing default questions: {str(e)}")
         return False

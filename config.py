@@ -1,113 +1,38 @@
-from database.db_connection import DatabaseConnection
+import os
+from dotenv import load_dotenv
 
-def insert_or_update_stock(symbol, name=None, country=None, sector=None, region=None, 
-                          industry=None, exchange=None, currency=None, ipo_year=None, isin=None):
-    """
-    Insert or update stock information
-    """
-    try:
-        with DatabaseConnection() as db:
-            if not db.connection:
-                return False
-            
-            # Check if stock exists
-            check_query = "SELECT symbol FROM stocks WHERE symbol = %s"
-            existing = db.fetch_all(check_query, (symbol,))
-            
-            if existing:
-                # Update existing stock
-                update_query = """
-                    UPDATE stocks SET 
-                        name = COALESCE(%s, name),
-                        country = COALESCE(%s, country),
-                        sector = COALESCE(%s, sector),
-                        region = COALESCE(%s, region),
-                        industry = COALESCE(%s, industry),
-                        exchange = COALESCE(%s, exchange),
-                        currency = COALESCE(%s, currency),
-                        ipo_year = COALESCE(%s, ipo_year),
-                        isin = COALESCE(%s, isin)
-                    WHERE symbol = %s
-                """
-                params = (name, country, sector, region, industry, exchange, 
-                         currency, ipo_year, isin, symbol)
-                return db.execute_query(update_query, params)
-            else:
-                # Insert new stock
-                insert_query = """
-                    INSERT INTO stocks (symbol, name, country, sector, region, industry, 
-                                      exchange, currency, ipo_year, isin)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                """
-                params = (symbol, name, country, sector, region, industry, 
-                         exchange, currency, ipo_year, isin)
-                return db.execute_query(insert_query, params)
-                
-    except Exception as e:
-        print(f"Error in insert_or_update_stock for {symbol}: {str(e)}")
-        return False
+load_dotenv()
 
-def get_stock_info(symbol):
-    """
-    Get stock information
-    """
-    try:
-        with DatabaseConnection() as db:
-            if not db.connection:
-                return None
-            
-            query = "SELECT * FROM stocks WHERE symbol = %s"
-            results = db.fetch_all(query, (symbol,))
-            
-            if results:
-                return dict(results[0])
-            return None
-                
-    except Exception as e:
-        print(f"Error in get_stock_info for {symbol}: {str(e)}")
-        return None
+STOCK_SYMBOLS = [
+    "AAPL", "MSFT", "TSLA", "BABA", "SAP", 
+    "NESN.SW", "AMZN", "TM", "SHEL", "NFLX", 
+    "ASML", "SIE.DE", "NVO", "TCS.NS", "SHOP"
+]
 
-def get_all_stocks():
-    """
-    Get all stocks from database
-    """
-    try:
-        with DatabaseConnection() as db:
-            if not db.connection:
-                return []
-            
-            query = "SELECT * FROM stocks ORDER BY symbol"
-            results = db.fetch_all(query)
-            
-            return [dict(row) for row in results]
-                
-    except Exception as e:
-        print(f"Error in get_all_stocks: {str(e)}")
-        return []
+DB_CONFIG = {
+    'host': 'localhost',
+    'port': 5432,
+    'database': 'yfin_try',
+    'user': 'postgres',
+    'password': os.getenv('DB_PASSWORD')
+}
 
-def extract_stock_info_from_ticker(ticker_data):
-    """
-    Extract stock information from ticker data
-    """
-    try:
-        if not ticker_data or 'info' not in ticker_data:
-            return {}
-        
-        info = ticker_data['info']
-        
-        extracted = {
-            'name': info.get('longName') or info.get('shortName'),
-            'country': info.get('country'),
-            'sector': info.get('sector'),
-            'industry': info.get('industry'),
-            'exchange': info.get('exchange'),
-            'currency': info.get('currency'),
-            'ipo_year': info.get('ipoYear'),
-            'isin': info.get('isin')
-        }
-        
-        return extracted
-        
-    except Exception as e:
-        print(f"Error extracting stock info: {str(e)}")
-        return {}
+BASE_ANALYSIS_PROMPT = """
+You are a financial analysis expert. I will provide you with a JSON data dump from the Yahoo Finance API for a stock and a specific question about that stock. Your task is to analyze the data and provide a concise, structured answer.
+
+The raw JSON data will be passed to you as-is, without preprocessing. You should extract only the necessary values from this JSON to answer the question. If a required data field is missing, acknowledge it concisely and continue.
+
+Instructions:
+- Your answer should be concise (preferably ≤ 150 words) and provide key takeaways rather than technical detail.
+- Use a professional tone appropriate for a financial research dashboard.
+- Predictive statements are allowed if grounded in evidence, but avoid speculation.
+- If relevant, explain confidence or uncertainty behind your conclusion.
+- Do not compare to other stocks unless explicitly asked.
+
+JSON Data:
+{json_data}
+
+Question: {question}
+
+Please provide your analysis answer:
+"""

@@ -1,15 +1,11 @@
 from database.db_connection import DatabaseConnection
 
 def insert_or_update_answer(symbol, question_id, answer_text):
-    """
-    Insert or update answer for a stock and question
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
                 return False
             
-            # Check if answer exists
             check_query = """
                 SELECT symbol FROM answers 
                 WHERE symbol = %s AND question_id = %s
@@ -17,7 +13,6 @@ def insert_or_update_answer(symbol, question_id, answer_text):
             existing = db.fetch_all(check_query, (symbol, question_id))
             
             if existing:
-                # Update existing answer
                 update_query = """
                     UPDATE answers 
                     SET answer_text = %s 
@@ -26,7 +21,6 @@ def insert_or_update_answer(symbol, question_id, answer_text):
                 params = (answer_text, symbol, question_id)
                 return db.execute_query(update_query, params)
             else:
-                # Insert new answer
                 insert_query = """
                     INSERT INTO answers (symbol, question_id, answer_text)
                     VALUES (%s, %s, %s)
@@ -35,13 +29,9 @@ def insert_or_update_answer(symbol, question_id, answer_text):
                 return db.execute_query(insert_query, params)
                 
     except Exception as e:
-        print(f"Error inserting/updating answer for {symbol}, question {question_id}: {str(e)}")
         return False
 
 def get_answer(symbol, question_id):
-    """
-    Get answer for a specific stock and question
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -59,13 +49,9 @@ def get_answer(symbol, question_id):
             return None
                 
     except Exception as e:
-        print(f"Error getting answer for {symbol}, question {question_id}: {str(e)}")
         return None
 
 def get_all_answers_for_stock(symbol):
-    """
-    Get all answers for a stock with question text
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -83,13 +69,9 @@ def get_all_answers_for_stock(symbol):
             return [dict(row) for row in results]
                 
     except Exception as e:
-        print(f"Error getting all answers for {symbol}: {str(e)}")
         return []
 
 def get_all_answers_for_question(question_id):
-    """
-    Get all answers for a specific question across all stocks
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -107,13 +89,9 @@ def get_all_answers_for_question(question_id):
             return [dict(row) for row in results]
                 
     except Exception as e:
-        print(f"Error getting all answers for question {question_id}: {str(e)}")
         return []
 
 def get_dashboard_data():
-    """
-    Get all data for dashboard display
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -135,7 +113,6 @@ def get_dashboard_data():
             
             results = db.fetch_all(query)
             
-            # Group by stock symbol
             dashboard_data = {}
             for row in results:
                 symbol = row['symbol']
@@ -156,13 +133,9 @@ def get_dashboard_data():
             return dashboard_data
                 
     except Exception as e:
-        print(f"Error getting dashboard data: {str(e)}")
         return {}
 
 def cleanup_old_answers(days_to_keep=30):
-    """
-    Clean up old answers
-    """
     try:
         with DatabaseConnection() as db:
             if not db.connection:
@@ -176,5 +149,4 @@ def cleanup_old_answers(days_to_keep=30):
             return db.execute_query(query, (days_to_keep,))
                 
     except Exception as e:
-        print(f"Error cleaning up old answers: {str(e)}")
         return False
