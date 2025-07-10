@@ -12,7 +12,7 @@ STOCK_SYMBOLS = [
 DB_CONFIG = {
     'host': 'localhost',
     'port': 5432,
-    'database': 'yfin_try',
+    'database': 'yfin_final',
     'user': 'postgres',
     'password': os.getenv('DB_PASSWORD')
 }
