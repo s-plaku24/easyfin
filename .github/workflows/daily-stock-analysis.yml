@@ -2,8 +2,8 @@ name: Daily Stock Analysis
 
 on:
   schedule:
-    # Runs every day at 6:00 AM UTC (adjust timezone as needed)
-    - cron: '0 6 * * *'
+    # Runs every day at 4:00 AM UTC (6 AM Berlin time during winter)
+    - cron: '0 4 * * *'
   workflow_dispatch: # Allows manual triggering
 
 jobs:
@@ -46,3 +46,16 @@ jobs:
         name: error-logs
         path: logs/
         retention-days: 7
+    
+    - name: Notify on failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            title: 'Daily Stock Analysis Failed',
+            body: 'The automated stock analysis failed. Check the logs for details.',
+            labels: ['bug', 'automation']
+          })

@@ -12,6 +12,28 @@ from llm_analysis.groq_analyzer import analyze_stock_batch_groq, test_groq_conne
 from dotenv import load_dotenv
 load_dotenv()
 
+# Add at the top of main.py
+import logging
+import os
+
+# Configure logging for GitHub Actions
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('stock_analysis.log') if os.path.exists('logs') else logging.StreamHandler()
+    ]
+)
+
+def main():
+    try:
+        logging.info("Starting automated stock analysis...")
+        # Your existing main() code here
+        logging.info("Stock analysis completed successfully")
+    except Exception as e:
+        logging.error(f"Stock analysis failed: {e}")
+        sys.exit(1)  # This will mark the GitHub Action as failed
 
 def test_connections():
     """Test both FMP and Groq connections"""
