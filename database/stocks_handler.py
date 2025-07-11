@@ -38,6 +38,7 @@ def insert_or_update_stock(symbol, name=None, country=None, sector=None, region=
                 return db.execute_query(insert_query, params)
                 
     except Exception as e:
+        print(f"[ERROR] Failed to insert/update stock {symbol}: {e}")
         return False
 
 def get_stock_info(symbol):
@@ -54,6 +55,7 @@ def get_stock_info(symbol):
             return None
                 
     except Exception as e:
+        print(f"[ERROR] Failed to get stock info for {symbol}: {e}")
         return None
 
 def get_all_stocks():
@@ -68,9 +70,39 @@ def get_all_stocks():
             return [dict(row) for row in results]
                 
     except Exception as e:
+        print(f"[ERROR] Failed to get all stocks: {e}")
         return []
 
+def extract_stock_info_from_fmp(fmp_data):
+    """Extract stock information from FMP data structure"""
+    try:
+        if not fmp_data or 'quote' not in fmp_data:
+            return {}
+        
+        quote = fmp_data['quote']
+        
+        if not quote:
+            return {}
+        
+        extracted = {
+            'name': quote.get('name'),
+            'country': None,  # FMP doesn't provide country in quote endpoint
+            'sector': None,   # Would need profile endpoint (not used to save tokens)
+            'industry': None, # Would need profile endpoint (not used to save tokens)
+            'exchange': quote.get('exchange'),
+            'currency': None, # Not provided in quote endpoint
+            'ipo_year': None, # Not provided in quote endpoint  
+            'isin': None      # Not provided in quote endpoint
+        }
+        
+        return extracted
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to extract stock info from FMP data: {e}")
+        return {}
+
 def extract_stock_info_from_ticker(ticker_data):
+    """Legacy function for yfinance compatibility"""
     try:
         if not ticker_data or 'info' not in ticker_data:
             return {}
@@ -91,4 +123,34 @@ def extract_stock_info_from_ticker(ticker_data):
         return extracted
         
     except Exception as e:
+        print(f"[ERROR] Failed to extract stock info from ticker data: {e}")
+        return {}
+
+def extract_market_data_from_fmp(fmp_data):
+    """Extract current market data from FMP for analysis"""
+    try:
+        if not fmp_data:
+            return {}
+        
+        quote = fmp_data.get('quote', {})
+        historical = fmp_data.get('historical', {})
+        
+        market_data = {
+            'current_price': quote.get('price'),
+            'market_cap': quote.get('marketCap'),
+            'volume': quote.get('volume'),
+            'pe_ratio': quote.get('pe'),
+            'day_change': quote.get('change'),
+            'day_change_percent': quote.get('changesPercentage'),
+            'year_high': quote.get('yearHigh'),
+            'year_low': quote.get('yearLow'),
+            'avg_volume': quote.get('avgVolume'),
+            'shares_outstanding': quote.get('sharesOutstanding'),
+            'recent_history': historical.get('historical', [])
+        }
+        
+        return market_data
+        
+    except Exception as e:
+        print(f"[ERROR] Failed to extract market data from FMP: {e}")
         return {}

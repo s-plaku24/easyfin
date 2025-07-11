@@ -13,6 +13,7 @@ class DatabaseConnection:
             self.cursor = self.connection.cursor(cursor_factory=RealDictCursor)
             return True
         except Exception as e:
+            print(f"[ERROR] Database connection failed: {e}")
             return False
     
     def disconnect(self):
@@ -23,23 +24,36 @@ class DatabaseConnection:
     
     def execute_query(self, query, params=None):
         try:
+            if not self.connection or not self.cursor:
+                print("[ERROR] No database connection")
+                return False
+                
             self.cursor.execute(query, params)
             self.connection.commit()
             return True
         except Exception as e:
-            self.connection.rollback()
+            print(f"[ERROR] Query execution failed: {e}")
+            if self.connection:
+                self.connection.rollback()
             return False
     
     def fetch_all(self, query, params=None):
         try:
+            if not self.connection or not self.cursor:
+                print("[ERROR] No database connection")
+                return []
+                
             self.cursor.execute(query, params)
             return self.cursor.fetchall()
         except Exception as e:
+            print(f"[ERROR] Query fetch failed: {e}")
             return []
     
     def __enter__(self):
-        self.connect()
-        return self
+        if self.connect():
+            return self
+        else:
+            return None
     
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.disconnect()
