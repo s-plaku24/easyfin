@@ -46,6 +46,7 @@ def create_batch_analysis_prompt(symbol, raw_data=None):
         print(f"[ERROR] Failed to create batch analysis prompt for {symbol}: {e}")
         return None
 
+
 def optimize_data_for_tokens(raw_data, symbol):
     """Optimize FMP data structure to minimize token usage while preserving analysis value"""
     try:

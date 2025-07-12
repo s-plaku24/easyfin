@@ -18,10 +18,14 @@ DB_CONFIG = {
 }
 
 # Updated prompt for batch analysis of all questions
-BASE_ANALYSIS_PROMPT = """
-You are a financial analysis expert. I will provide you with financial data from FMP API for a stock and specific questions. Your task is to analyze and summarize the data into concise, structured answers for each stock. These summaries will be displayed on a non-interactive financial dashboard, so they must be informative and digestible at a glance.
 
-The data includes current market data (quote) and recent price history (historical). If a required data field is missing, acknowledge it concisely and continue. When helpful, you may incorporate other fields to support or explain the analysis.
+BASE_ANALYSIS_PROMPT = """
+You are a financial analysis expert. I will provide you with financial data from FMP API for a stock and specific questions. Your task is to analyze and 
+summarize the data into concise, structured answers for each stock. These summaries will be displayed on a non-interactive financial dashboard, so they must be 
+informative and digestible at a glance.
+
+The data includes current market data (quote) and recent price history (historical). If a required data field is missing, acknowledge it concisely and continue. 
+When helpful, you may incorporate other fields to support or explain the analysis.
 
 For each question, provide the output exactly as:
 symbol: {symbol}
@@ -38,7 +42,8 @@ Instructions:
 – If relevant, explain confidence or uncertainty behind your conclusion (e.g., "Based on a limited sample of earnings…").
 – Do not compare one stock to others unless explicitly asked. Each stock is to be evaluated independently.
 
-This output will be presented to end users without interaction. It must deliver value at a glance, highlight relevant insights, and avoid raw data dumps or excessive detail.
+This output will be presented to end users without interaction. It must deliver value at a glance, highlight relevant insights, and avoid raw data dumps or 
+excessive detail.
 
 Data:
 {json_data}
