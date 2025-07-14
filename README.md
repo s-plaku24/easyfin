@@ -34,11 +34,11 @@ Each stock is analyzed against these financial questions:
 ├── data_extraction/          # FMP API integration
 │   └── fmp_fetcher.py       # Fetch quote and historical data
 ├── database/                # Database operations
+│   ├── answers_handler.py   # AI analysis results storage
 │   ├── db_connection.py     # Connection management
-│   ├── stocks_handler.py    # Stock information CRUD
 │   ├── questions_handler.py # Analysis questions management
 │   ├── raw_data_handler.py  # Raw market data storage
-│   └── answers_handler.py   # AI analysis results storage
+│   └── stocks_handler.py    # Stock information
 ├── llm_analysis/            # AI analysis engine
 │   ├── groq_analyzer.py     # Groq API integration
 │   └── prompt_processor.py  # Prompt optimization
@@ -55,13 +55,6 @@ Each stock is analyzed against these financial questions:
 - **`questions_templates`**: Analysis questions stored in database
 - **`raw_data`**: JSON storage of FMP API responses
 - **`answers`**: AI-generated analysis results with question references
-
-### Key Relationships
-```sql
-stocks (1) ──── (M) raw_data
-stocks (1) ──── (M) answers
-questions_templates (1) ──── (M) answers
-```
 
 ## ⚙️ Installation & Setup
 
@@ -99,18 +92,6 @@ DB_CONFIG = {
     'user': 'your_username',
     'password': os.getenv('DB_PASSWORD')
 }
-```
-
-### 4. Required Database Tables
-The application will create these tables automatically:
-```sql
--- Core tables (simplified structure)
-CREATE TABLE stocks (symbol VARCHAR PRIMARY KEY, name VARCHAR, ...);
-CREATE TABLE questions_templates (id SERIAL PRIMARY KEY, question_text TEXT);
-CREATE TABLE raw_data (symbol VARCHAR REFERENCES stocks(symbol), raw_data JSONB, ...);
-CREATE TABLE answers (symbol VARCHAR REFERENCES stocks(symbol), 
-                     question_id INTEGER REFERENCES questions_templates(id), 
-                     answer_text TEXT, ...);
 ```
 
 ## 🚀 Usage
@@ -223,4 +204,4 @@ python -c "from database.answers_handler import get_dashboard_data; print(get_da
 3. **Token Limit Exceeded**: Review data size limits in `config.py`
 4. **Missing Dependencies**: Ensure all `requirements.txt` packages installed
 
-## Thank YOU for reading all of this!
+## Thank YOU!
