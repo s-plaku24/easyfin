@@ -269,14 +269,3 @@ def test_groq_connection():
 def get_token_usage_estimate(text):
     """Get rough estimate of token usage for a text"""
     return len(text) // 4
-
-def validate_prompt_size(prompt, max_tokens=6000):
-    """Validate that prompt is within acceptable token limits"""
-    estimated_tokens = get_token_usage_estimate(prompt)
-    
-    if estimated_tokens > max_tokens:
-        print(f"[WARN] Prompt too large: ~{estimated_tokens} tokens (max: {max_tokens})")
-        return False
-    
-    print(f"[INFO] Prompt size OK: ~{estimated_tokens} tokens")
-    return True

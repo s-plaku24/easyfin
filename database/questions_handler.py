@@ -53,35 +53,6 @@ def get_question_by_id(question_id):
     except Exception as e:
         return None
 
-def update_question(question_id, question_text):
-    try:
-        with DatabaseConnection() as db:
-            if not db.connection:
-                return False
-            
-            query = """
-                UPDATE questions_templates 
-                SET question_text = %s 
-                WHERE id = %s
-            """
-            
-            return db.execute_query(query, (question_text, question_id))
-                
-    except Exception as e:
-        return False
-
-def delete_question(question_id):
-    try:
-        with DatabaseConnection() as db:
-            if not db.connection:
-                return False
-            
-            query = "DELETE FROM questions_templates WHERE id = %s"
-            return db.execute_query(query, (question_id,))
-                
-    except Exception as e:
-        return False
-
 def initialize_default_questions():
     try:
         questions = get_all_questions()
