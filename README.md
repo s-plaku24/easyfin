@@ -31,7 +31,7 @@ Each stock is analyzed against these financial questions:
 ## 🏗️ Architecture
 
 ```
-├── data_extraction/          # FMP API integration
+├── data_extraction/         # FMP API integration
 │   └── fmp_fetcher.py       # Fetch quote and historical data
 ├── database/                # Database operations
 │   ├── answers_handler.py   # AI analysis results storage
@@ -45,7 +45,7 @@ Each stock is analyzed against these financial questions:
 ├── .github/workflows/       # Automation
 │   └── daily-stock-analysis.yml
 ├── main.py                  # Main execution pipeline
-└── config.py               # Configuration settings
+└── config.py                # Configuration settings
 ```
 
 ## 🗄️ Database Schema
