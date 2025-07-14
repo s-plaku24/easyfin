@@ -36,9 +36,7 @@ def insert_or_update_stock(symbol, name=None, country=None, sector=None, region=
                 params = (symbol, name, country, sector, region, industry, 
                          exchange, currency, ipo_year, isin)
                 return db.execute_query(insert_query, params)
-                
-    except Exception as e:
-        print(f"[ERROR] Failed to insert/update stock {symbol}: {e}")
+    except Exception:
         return False
 
 def get_stock_info(symbol):
@@ -53,9 +51,7 @@ def get_stock_info(symbol):
             if results:
                 return dict(results[0])
             return None
-                
-    except Exception as e:
-        print(f"[ERROR] Failed to get stock info for {symbol}: {e}")
+    except Exception:
         return None
 
 def get_all_stocks():
@@ -68,9 +64,7 @@ def get_all_stocks():
             results = db.fetch_all(query)
             
             return [dict(row) for row in results]
-                
-    except Exception as e:
-        print(f"[ERROR] Failed to get all stocks: {e}")
+    except Exception:
         return []
 
 def extract_stock_info_from_fmp(fmp_data):
@@ -80,23 +74,18 @@ def extract_stock_info_from_fmp(fmp_data):
             return {}
         
         quote = fmp_data['quote']
-        
         if not quote:
             return {}
         
-        extracted = {
+        return {
             'name': quote.get('name'),
-            'country': None,  # FMP doesn't provide country in quote endpoint
-            'sector': None,   # Would need profile endpoint (not used to save tokens)
-            'industry': None, # Would need profile endpoint (not used to save tokens)
             'exchange': quote.get('exchange'),
-            'currency': None, # Not provided in quote endpoint
-            'ipo_year': None, # Not provided in quote endpoint  
-            'isin': None      # Not provided in quote endpoint
+            'country': None,
+            'sector': None,
+            'industry': None,
+            'currency': None,
+            'ipo_year': None,
+            'isin': None
         }
-        
-        return extracted
-        
-    except Exception as e:
-        print(f"[ERROR] Failed to extract stock info from FMP data: {e}")
+    except Exception:
         return {}

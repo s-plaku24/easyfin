@@ -16,11 +16,8 @@ def insert_question(question_text):
             result = db.cursor.fetchone()
             db.connection.commit()
             
-            if result:
-                return result['id']
-            return None
-                
-    except Exception as e:
+            return result['id'] if result else None
+    except Exception:
         return None
 
 def get_all_questions():
@@ -33,8 +30,7 @@ def get_all_questions():
             results = db.fetch_all(query)
             
             return [dict(row) for row in results]
-                
-    except Exception as e:
+    except Exception:
         return []
 
 def get_question_by_id(question_id):
@@ -46,11 +42,8 @@ def get_question_by_id(question_id):
             query = "SELECT * FROM questions_templates WHERE id = %s"
             results = db.fetch_all(query, (question_id,))
             
-            if results:
-                return dict(results[0])
-            return None
-                
-    except Exception as e:
+            return dict(results[0]) if results else None
+    except Exception:
         return None
 
 def initialize_default_questions():
@@ -68,10 +61,7 @@ def initialize_default_questions():
             
             for question in default_questions:
                 insert_question(question)
-            
-            return True
         
         return True
-        
-    except Exception as e:
+    except Exception:
         return False
