@@ -10,10 +10,10 @@ STOCK_SYMBOLS = [
 ]
 
 DB_CONFIG = {
-    'host': '91.99.20.15',
-    'port': 5432,
-    'database': 'postgres',
-    'user': 'nils',
+    'host': os.getenv('DB_HOST', 'your_database_host'),
+    'port': int(os.getenv('DB_PORT', '5432')),
+    'database': os.getenv('DB_NAME', 'postgres'),
+    'user': os.getenv('DB_USER', 'your_username'),
     'password': os.getenv('DB_PASSWORD')
 }
 
