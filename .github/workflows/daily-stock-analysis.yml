@@ -34,6 +34,10 @@ jobs:
     
     - name: Run stock analysis
       env:
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_PORT: ${{ secrets.DB_PORT }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_USER: ${{ secrets.DB_USER }}
         DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
         FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
