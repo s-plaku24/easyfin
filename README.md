@@ -73,8 +73,39 @@ venv\Scripts\activate     # Windows
 # Install dependencies
 pip install -r requirements.txt
 ```
+### 2. API Keys Setup
+This project requires two API keys to function properly. Both services offer free tiers suitable for this project.
 
-### 2. Environment Variables
+#### Financial Modeling Prep (FMP) API Key
+**Free Tier**: 250 API calls per day (sufficient for 12 stocks × 2 endpoints)
+
+1. **Create Account**
+   - Visit financialmodelingprep.com
+   - Click "Get API Key" or "Sign Up"
+   - Register with your email and create a password
+
+2. **Get API Key**
+   - After registration, log into your dashboard
+   - Navigate to "API Keys" or "Dashboard" section
+   - Copy your API key (format: `your_api_key_here`)
+   - **Important**: The free tier provides 250 calls/day, which is perfect for this project's daily analysis of 12 stocks
+
+#### Groq API Key (LLaMA 3)
+**Free Tier**: Generous limits for AI model usage
+
+1. **Create Account**
+   - Visit console.groq.com
+   - Click "Sign Up" or "Get Started"
+   - Sign up with Google, GitHub, or email
+
+2. **Generate API Key**
+   - After logging in, go to "API Keys" section
+   - Click "Create API Key"
+   - Give it a descriptive name (e.g., "Stock Analysis Project")
+   - Copy the generated key (format: `gsk_...`)
+   - **Important**: Save this key immediately - you won't be able to see it again
+
+### 3. Environment Variables
 Create a `.env` file:
 ```env
 
@@ -102,14 +133,6 @@ The GitHub Action runs daily at 4:00 AM UTC (6:00 AM Berlin time):
 ```yaml
 schedule:
   - cron: '0 4 * * *'
-```
-
-### Testing Components
-```bash
-# Test individual components
-python -c "from data_extraction.fmp_fetcher import test_fmp_connection; test_fmp_connection()"
-python -c "from llm_analysis.groq_analyzer import test_groq_connection; test_groq_connection()"
-python -c "from database.db_connection import test_database_connection; test_database_connection()"
 ```
 
 ## 📋 API Requirements
