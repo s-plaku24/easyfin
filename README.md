@@ -77,21 +77,17 @@ pip install -r requirements.txt
 ### 2. Environment Variables
 Create a `.env` file:
 ```env
+
+# Database configuration
+DB_HOST=your_database_host_ip
+DB_PORT=5432
+DB_NAME=postgres
+DB_USER=your_username
 DB_PASSWORD=your_postgresql_password
+
+# API keys
 GROQ_API_KEY=your_groq_api_key
 FMP_API_KEY=your_fmp_api_key
-```
-
-### 3. Database Configuration
-Update `config.py` with your PostgreSQL connection details:
-```python
-DB_CONFIG = {
-    'host': 'your_db_host',
-    'port': 5432,
-    'database': 'postgres',
-    'user': 'your_username',
-    'password': os.getenv('DB_PASSWORD')
-}
 ```
 
 ## 🚀 Usage
